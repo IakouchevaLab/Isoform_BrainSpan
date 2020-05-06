@@ -1,0 +1,332 @@
+---
+title: "qPCRValidation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+qpcr_results <- data.frame(
+    transcript = c(
+        "55294|NM_018315,55294|ENST00000263981,55294|uc003imq,55294|CCDS3778",
+        "55294|NM_001013415,55294|ENST00000296555,55294|uc003imr,55294|CCDS34078",
+        "55052|MRPL20_1_OMIM,55052|NM_017971,55052|ENST00000344843,55052|uc001afo,55052|CCDS26,55052|BC059945,55052|BC014316,55052|BC009515",
+        "55052|ENST00000482352,55052|uc010nyn",
+        "389541|NM_001008395,389541|ENST00000341942,389541|uc003utq,389541|CCDS34702,389541|BC105609,389541|BC063401,389541|BC130553,389541|BC130559",
+        "389541|ENST00000441173",
+        "2593|NM_138924,2593|ENST00000447102,2593|uc002lsk,2593|CCDS45897",
+        "2593|NM_000156,2593|ENST00000252288,2593|uc002lsj,2593|CCDS12064,2593|BC017936,2593|BC016760",
+        "142|NM_001618,142|ENST00000366794,142|uc001hqd,142|CCDS1554,142|BC037545,142|DQ891636,142|DQ894826",
+        "142|ENST00000366790",
+        "3094|NM_005340,3094|ENST00000304043,3094|uc003kve,3094|CCDS4147,3094|BC007090,3094|BC001287",
+        "3094|ENST00000508488",
+        "6636|NM_003095,6636|ENST00000266735,6636|uc001tej,6636|CCDS9055,6636|BC002505,6636|BC063397,6636|BC128452",
+        "8848|NM_006022,8848|ENST00000261489,8848|uc001uzm,8848|CCDS9392",
+        "6902|ENST00000517679",
+        "6902|NM_001297738,6902|ENST00000306388,6902|uc003kfi",
+        "5430|NM_000937,5430|uc002ghf,5430|CCDS32548,5430|BC137231,5430|ENST00000322644",
+        "5430|ENST00000572844,5430|uc002ghe",
+        "808|ENST00000272298",
+        "808|ENST00000409563",
+        "6513|NM_006516,6513|ENST00000426263,6513|uc001cik,6513|CCDS477,6513|BC118590,6513|BC121804",
+        "6513|ENST00000372500",
+        "6232|NM_001030,6232|ENST00000368567,6232|uc001fdv,6232|CCDS1059,6232|BC070219,6232|BC002658",
+        "6232|ENST00000392558",
+        "5947|NM_002899,5947|ENST00000232219,5947|uc003eti,5947|CCDS3110,5947|BC121052,5947|EU831403,5947|EU831495",
+        "5947|NM_001130992,5947|ENST00000492918,5947|uc011bmy,5947|CCDS46926"
+    ),
+    relative_expression = c(
+        1.570359168,
+        1.800855795,
+        3.551626262,
+        3.223173799,
+        0.386377481,
+        1.667287723,
+        16.75848043,
+        3.409573836,
+        2.130674666,
+        1.414948728,
+        3.107605051,
+        2.86789922,
+        0.849367473,
+        2.726755097,
+        1.274553377,
+        2.385273707,
+        1.94138833,
+        4.46766212,
+        4.064173248,
+        1.552635886,
+        6.233717636,
+        4.035419229,
+        0.898266502,
+        2.418791362,
+        0.984608311,
+        0.745063441
+    )
+) %>%
+    mutate(ensembl_transcript_id = str_match(transcript, "ENST[0-9]+")[, 1])
+```
+
+```{r}
+metadata <- read_tsv("data/metadata.tsv")
+p6_samples_22M <- metadata %>%
+    filter(Age == "22PCW") %>%
+    filter(Sex == "M") %>%
+    filter(
+        Regioncode %in% c(
+            "A1C", "DFC", "IPC", "ITC", "M1C", "MFC", "OFC", "S1C", "V1C", 
+            "VFC", "PC"
+        )
+    ) %>%
+    pull(Sample)
+p6_samples_19F <- metadata %>%
+    filter(Age == "19PCW") %>%
+    filter(Sex == "F") %>%
+    filter(
+        Regioncode %in% c(
+            "A1C", "DFC", "IPC", "ITC", "M1C", "MFC", "OFC", "S1C", "V1C", 
+            "VFC", "PC"
+        )
+    ) %>%
+    pull(Sample)
+p12_samples_21F <- metadata %>%
+    filter(Age == "21Y") %>%
+    filter(Sex == "F") %>%
+    filter(
+        Regioncode %in% c(
+            "A1C", "DFC", "IPC", "ITC", "M1C", "MFC", "OFC", "S1C", "V1C", 
+            "VFC", "PC"
+        )
+    ) %>%
+    pull(Sample)
+p12_samples_23M <- metadata %>%
+    filter(Age == "23Y") %>%
+    filter(Sex == "M") %>%
+    filter(
+        Regioncode %in% c(
+            "A1C", "DFC", "IPC", "ITC", "M1C", "MFC", "OFC", "S1C", "V1C", 
+            "VFC", "PC"
+        )
+    ) %>%
+    pull(Sample)
+```
+
+```{r}
+load("data/source/BrainSpan.RSEM_Quant.isoform.tpm.RData")
+trans_bspan_expr_F <- tpm[
+    qpcr_results$ensembl_transcript_id, 
+    c(p6_samples_19F, p12_samples_21F)
+] %>%
+    reshape2::melt() %>%
+    left_join(
+        dplyr::select(metadata, Period, Sample), by = c("Var2" = "Sample")
+    ) %>%
+    group_by(Var1, Period) %>%
+    summarize(mean_expression = mean(value)) %>%
+    ungroup() %>%
+    reshape2::dcast(Var1 ~ Period, value.var = "mean_expression") %>%
+    mutate(relative_expression = `13` / `6`) %>%
+    mutate(ensembl_transcript_id = as.character(Var1))
+trans_bspan_expr_M <- tpm[
+    qpcr_results$ensembl_transcript_id, 
+    c(p6_samples_22M, p12_samples_23M)
+] %>%
+    reshape2::melt() %>%
+    left_join(
+        dplyr::select(metadata, Period, Sample), by = c("Var2" = "Sample")
+    ) %>%
+    group_by(Var1, Period) %>%
+    summarize(mean_expression = mean(value)) %>%
+    ungroup() %>%
+    reshape2::dcast(Var1 ~ Period, value.var = "mean_expression") %>%
+    mutate(relative_expression = `13` / `6`) %>%
+    mutate(ensembl_transcript_id = as.character(Var1))
+```
+
+```{r}
+joined_expressions_F <- inner_join(
+    qpcr_results, 
+    trans_bspan_expr_F,
+    by = "ensembl_transcript_id",
+    suffix = c("_qPCR", "_BrainSpan")
+)
+joined_expressions_M <- inner_join(
+    qpcr_results, 
+    trans_bspan_expr_M,
+    by = "ensembl_transcript_id",
+    suffix = c("_qPCR", "_BrainSpan")
+)
+```
+
+```{r}
+cor.test(
+    sign(log(joined_expressions_F$relative_expression_qPCR)),
+    sign(log(joined_expressions_F$relative_expression_BrainSpan))
+)
+cor.test(
+    sign(log(joined_expressions_M$relative_expression_qPCR)),
+    sign(log(joined_expressions_M$relative_expression_BrainSpan))
+)
+```
+
+```{r}
+ggplot(
+    data = joined_expressions_F,
+    mapping = aes(
+        x = relative_expression_qPCR, y = relative_expression_BrainSpan
+    )
+) +
+    geom_point(size = 5) +
+    geom_line(stat = "smooth", method = "lm")
+
+ggplot(
+    data = joined_expressions_M,
+    mapping = aes(
+        x = relative_expression_qPCR, y = relative_expression_BrainSpan
+    )
+) +
+    geom_point(size = 5) +
+    geom_line(stat = "smooth", method = "lm")
+```
+
+
+
+```{r}
+qPCR_F <- ggplot(
+    data = joined_expressions_F %>%
+        dplyr::select(
+            transcript, relative_expression_qPCR, relative_expression_BrainSpan
+        ) %>%
+        reshape2::melt(
+            id.vars = "transcript"
+        ) %>%
+        mutate(log_relative_expression = log(value)) %>%
+        rename(relative_expression = value) %>%
+        rename(expression_source = variable) %>%
+        mutate(
+            ensembl_transcript_id = str_match(transcript, "ENST[0-9]+")[, 1]
+        ),
+    mapping = aes(
+        x = ensembl_transcript_id, y = log_relative_expression,
+        group = expression_source, fill = expression_source, 
+        colour = expression_source
+    )
+) +
+    geom_bar(stat = "identity", position = "dodge") +
+    scale_fill_discrete(
+        labels = c(
+            "relative_expression_qPCR" = "qPCR Rel. Expr.",
+            "relative_expression_BrainSpan" = "BrainSpan Rel. Expr."
+        )
+    ) +
+    guides(
+        fill = guide_legend(title = "Expression Source"),
+        colour = FALSE
+    ) +
+    labs(x = "Transcript", y = expression("log"["10"]*"Relative Expression")) +
+    annotate(
+        geom = "text", label = paste(capture.output(
+            cor.test(
+                sign(log(joined_expressions_M$relative_expression_qPCR)),
+                sign(log(joined_expressions_M$relative_expression_BrainSpan))
+            )
+        )[c(2, 11)], collapse = "\n"), x = 10, y = 3, size = 2
+    ) +
+    theme_bw() +
+    theme(
+        text = element_text(size = 9),
+        axis.text.x = element_text(angle = -30, hjust = 0),
+        legend.position = "right",
+        plot.margin = margin()
+    )
+# qPCR_F
+ggsave(
+    filename = "data/figures/qPCR_F.pdf",
+    plot = qPCR_F,
+    device = "pdf", width = 12, height = 6, unit = "cm"
+)
+```
+
+```{r}
+# Combine all tables together and format
+joined_expressions <- list(
+    Male_22PCW_Male_23Y = joined_expressions_M %>%
+        rename(
+            relExpr_BrainSpan_22wM_23yM = relative_expression_BrainSpan
+        ) %>%
+        rename(`TPM_22wM` = `6`, `TPM_23yM` = `13`) %>%
+        dplyr::select(
+            ensembl_transcript_id, TPM_22wM, TPM_23yM,
+            relExpr_BrainSpan_22wM_23yM, relative_expression_qPCR
+        ),
+    Female_19PCW_Female_21Y = joined_expressions_F %>%
+        rename(
+            relExpr_BrainSpan_19wF_21yF = relative_expression_BrainSpan
+        ) %>%
+        rename(`TPM_19wF` = `6`, `TPM_21yF` = `13`) %>%
+        dplyr::select(
+            ensembl_transcript_id, TPM_19wF, TPM_21yF,
+            relExpr_BrainSpan_19wF_21yF, relative_expression_qPCR
+        )
+)
+writexl::write_xlsx(
+    joined_expressions,
+    "data/qPCR_Validation_Expressions.xlsx"
+)
+```
+
+
+
+
+
+
+```{r}
+dat <- joined_expressions_F %>%
+    dplyr::select(
+        transcript, relative_expression_qPCR, relative_expression_BrainSpan
+    ) %>%
+    reshape2::melt(
+        id.vars = "transcript"
+    ) %>%
+    mutate(log_relative_expression = log(value)) %>%
+    rename(relative_expression = value) %>%
+    rename(expression_source = variable) %>%
+    mutate(
+        ensembl_transcript_id = str_match(transcript, "ENST[0-9]+")[, 1]
+    ) %>%
+    dplyr::select(ensembl_transcript_id)
+annotations <- read.table(
+            "data/source/annotation.transcript.ensg75.txt", sep = ",", header = TRUE
+        )
+load("data/source/BrainSpan.RSEM_Quant.isoform.tpm.RData")
+p06 <- metadata$Sample[metadata$Period == 6]
+p13 <- metadata$Sample[metadata$Period == 13]
+dat %>%
+    mutate(
+        ensembl_gene_id = annotations$ensembl_gene_id[
+            match(ensembl_transcript_id, annotations$ensembl_transcript_id)
+        ]
+    ) %>%
+    mutate(tpm06 = sapply(
+        ensembl_transcript_id,
+        function(tx) {
+            mean(tpm[tx, p06])
+        }
+    )) %>%
+    mutate(tpm13 = sapply(
+        ensembl_transcript_id,
+        function(tx) {
+            mean(tpm[tx, p13])
+        }
+    )) %>%
+    arrange(ensembl_gene_id) %>%
+    distinct()
+
+```
+

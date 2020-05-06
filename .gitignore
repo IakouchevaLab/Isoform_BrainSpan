@@ -1,0 +1,11 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+WorkingPresentation.pptx
+~$*
+
+.DS_Store
+data/
+BrainSpan_Paper_Figures/
+log/
