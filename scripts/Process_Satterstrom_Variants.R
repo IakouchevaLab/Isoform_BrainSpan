@@ -115,6 +115,7 @@ variant_vep <- read_tsv(
         )
     )
 write_tsv(variant_vep, "data/SNVs/SatterstromProcessedVEP.txt")
+variant_vep <- read_tsv("data/SNVs/SatterstromProcessedVEP.txt")
 
 # breakdown
 
@@ -160,3 +161,15 @@ variants <- readxl::read_xlsx("data/SupplementaryTables/Supplementary Table 7.xl
 dim(variants)
 length(unique(pull(variants, `Ensembl Transcript ID`)))
 write_csv(distinct(variants), "data/variants.csv")
+
+
+variant_vep %>%
+    distinct(`#Uploaded_variation`, Affected_status, LoF, Consequence) %>%
+    separate_rows(Consequence, sep = ",") %>%
+    filter(LoF) %>%
+    distinct(`#Uploaded_variation`, Affected_status, Consequence) %>%
+    filter(Consequence %in% names(lof)) %>%
+    # filter(str_detect(Consequence, "splice")) %>%
+    filter(Affected_status == 2) %>%
+    nrow()
+    

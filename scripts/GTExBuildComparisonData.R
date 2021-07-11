@@ -161,3 +161,29 @@ correlation_data <- mclapply(setNames(nm = transcripts), function(tx) {
     bind_rows()
 
 write_tsv(correlation_data, "data/gtex_analysis/empirical_correlations.tsv")
+correlation_data <- read_tsv("data/gtex_analysis/empirical_correlations.tsv") %>%
+    mutate(padjust = p.adjust(p.value, method = "fdr"))
+
+padj_cor <- correlation_data$padjust[!is.na(correlation_data$padjust)]
+scale_fun <- function(x) sprintf("%.2f", x)
+plt <- ggplot(
+    data = correlation_data,
+    mapping = aes(x = "", y = padjust)
+) +
+    geom_boxplot() +
+    geom_hline(yintercept=0.05, colour="red") +
+    labs(title = "BrainSpan - GTEx Correlation P-Values",
+         y = "Adjusted P-Value") +
+    scale_y_continuous(breaks = sort(c(seq(min(padj_cor), max(padj_cor), by = 0.25), 0.05)),
+                       labels = scale_fun) +
+    theme(
+        text = element_text(size = 20),
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank()
+    )
+ggsave("data/figures/BrainSpan_GTEx_PVal.pdf",
+       plt,
+       device = "pdf",
+       width = 8,
+       height = 6)

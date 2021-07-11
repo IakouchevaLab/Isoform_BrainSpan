@@ -10,7 +10,7 @@ annotations <- read.table(
     header = TRUE, row.names = 1, sep = ",", stringsAsFactors = FALSE
 )
 variants <- readxl::read_xlsx(
-    "data/SupplementaryTables/Supplementary Table 6.xlsx", sheet = 2
+    "data/SupplementaryTables/Supplementary Table 7.xlsx", sheet = 2
 ) %>%
     separate_rows(Consequence, sep = ",") %>%
     filter(`Affected status` == 2) %>% 
